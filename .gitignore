@@ -66,3 +66,6 @@ vcpkg_installed/
 # test output & cache
 Testing/
 .cache/
+
+# Local credentials (see include/secrets.h.example)
+include/secrets.h
