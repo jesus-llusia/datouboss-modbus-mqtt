@@ -96,6 +96,8 @@ The ESP32-C3 and the RS485 transceiver fit in a small junction box mounted next 
 | GPIO8 | Status LED (onboard) |
 | 3V3 / GND | Transceiver VCC / GND (use a 3.3 V transceiver: the ESP32-C3 pins are not 5 V tolerant) |
 
+UART0 (GPIO20 RX / GPIO21 TX) is not used because wiring the transceiver to it caused WiFi connectivity problems, presumably because those pins are close to the SuperMini's ceramic antenna. UART1 on GPIO5 and GPIO4 has had no such issues.
+
 Connect the transceiver to the inverter's **RS485-1** port, which is an RJ45 socket. Pinout from the user manual (section 9), confirmed working with this project:
 
 | RJ45 pin | Signal | Connect to |
