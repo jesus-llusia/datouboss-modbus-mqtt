@@ -155,7 +155,7 @@ All registers are holding registers, read with function code `0x03`. Addresses a
 | `0x0007` | AC input (grid) current | raw / 10 | A | `aic` | 08 | Low |
 | `0x0008` | Battery voltage | raw / 10 | V | `bv` | 03 | Very high |
 | `0x0009` | DC bus current | **signed**, raw / 100 | A | `busc` | 07 | High |
-| `0x000A` | MPPT heatsink temperature | **signed**¹, raw | °C | `mt` | 17 | Very high |
+| `0x000A` | MPPT heatsink temperature (no sensor fitted, reads 24–25 °C) | **signed**¹, raw | °C | `mt` | 17 | Very high |
 | `0x000B` | PV1 current | raw / 10 | A | `pv1c` | 14 | High |
 | `0x000C` | PV1 voltage | raw / 10 | V | `pv1v` | 14 | High |
 | `0x000F` | DC/DC heatsink temperature | **signed**¹, raw | °C | `dt` | 18 | Very high |
@@ -179,7 +179,7 @@ All registers are holding registers, read with function code `0x03`. Addresses a
 | `0x0041` | Load consumption energy, lifetime total | raw | kWh | `le` | 13 | Low² |
 | `0x0042` | AC input (grid) power | raw | W | `aip` | 10 | Low |
 
-¹ Read as signed so that temperatures below 0 °C come through correctly. For positive values the result is the same as unsigned. The sign convention has not been confirmed on the inverter. The display and the fault codes (55 inverter heatsink, 56 DC/DC heatsink, 57 MPPT heatsink) confirm there are three temperature readings. However, a [teardown of the DT-1218M](https://mysku.club/blog/diy/108781.html) (in Russian) found positions for 3 NTC sensors with only 2 fitted. In the manual's example screens the MPPT and DC/DC temperatures both read 42 °C, which suggests two of the readings may come from the same sensor.
+¹ Read as signed so that temperatures below 0 °C come through correctly. For positive values the result is the same as unsigned. The sign convention has not been confirmed on the inverter. The display and the fault codes (55 inverter heatsink, 56 DC/DC heatsink, 57 MPPT heatsink) confirm there are three temperature readings. However, a [teardown of the DT-1218M](https://mysku.club/blog/diy/108781.html) (in Russian) found positions for 3 NTC sensors with only 2 fitted. The MPPT heatsink has no sensor connected, so `0x000A` stays between 24 and 25 °C regardless of load, which is not a real heatsink measurement.
 
 ² Confirmed to be lifetime totals in 1 kWh steps. A 16-bit register can count up to 65 535 kWh before wrapping back to zero. The counters can be cleared from the inverter's menu with setting **A29** ("power generation reset"); see [Reliability features](#reliability-features) for how the firmware handles that.
 
