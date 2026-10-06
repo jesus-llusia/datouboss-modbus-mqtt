@@ -1,4 +1,4 @@
-# solar-charger-mqtt
+# datouboss-modbus-mqtt
 
 This firmware runs in an ESP32-C3 that reads a **DATOUBOSS DT-1218M-A** hybrid solar inverter over its RS485 (Modbus RTU) port and publishes the data to Home Assistant over MQTT. All sensors appear in Home Assistant automatically through MQTT discovery.
 
