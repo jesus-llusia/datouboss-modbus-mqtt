@@ -69,3 +69,7 @@ Testing/
 
 # Local credentials (see include/secrets.h.example)
 include/secrets.h
+
+# Environment folders
+*.pio
+*.vscode

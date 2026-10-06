@@ -102,9 +102,8 @@
 #define REG_MPPT_HEATSINK_TEMP 0x000A
 #define REG_DCDC_HEATSINK_TEMP 0x000F
 #define REG_INV_HEATSINK_TEMP 0x0010
-#define REG_BATT_CURRENT 0x0011
+#define REG_BATT_CURRENT 0x0011 // signed: + charging, - discharging
 #define REG_LOAD_POWER_PCT 0x0013
-#define REG_PV_MPPT_FLAG 0x0016
 #define REG_LOAD_POWER_WATTS 0x0020
 #define REG_BATT_SOC 0x0033
 
@@ -112,12 +111,10 @@
 #define REG_BUS_CURRENT 0x0009
 #define REG_PV1_CURRENT 0x000B
 #define REG_PV1_VOLTAGE 0x000C
-#define REG_INVERTER_ACTIVE_FLAG 0x0015
-#define REG_CONFIG_INV_BIT 0x0017
 #define REG_PV1_POWER 0x0037
 #define REG_BATT_POWER 0x003E
 
-// AC Grid / energy
+// LOW CONFIDENCE (AC grid / energy)
 #define REG_AC_INPUT_VOLTAGE 0x0005
 #define REG_AC_INPUT_CURRENT 0x0007
 #define REG_AC_INPUT_FREQ 0x0012
@@ -160,7 +157,7 @@ static int16_t invInvHeatsinkTemp = 0;
 static uint16_t invLoadPowerPct = 0;
 static uint16_t invLoadPowerWatts = 0;
 static uint16_t invBattSoc = 0;
-static int16_t invBattPower = 0;
+static uint16_t invBattPower = 0;
 static float invAcInputVoltage = 0;
 static float invAcInputCurrent = 0;
 static float invAcInputFreq = 0;
@@ -663,14 +660,14 @@ static bool readInverterRegisters()
   invBattSoc = charger.getResponseBuffer(IDX(REG_BATT_SOC, REG_BATT_SOC));
   invPv1Power = charger.getResponseBuffer(IDX(REG_PV1_POWER, REG_BATT_SOC));
   invAcChargePower = charger.getResponseBuffer(IDX(REG_AC_CHARGE_POWER, REG_BATT_SOC));
-  invBattPower = (int16_t)charger.getResponseBuffer(IDX(REG_BATT_POWER, REG_BATT_SOC));
+  invBattPower = charger.getResponseBuffer(IDX(REG_BATT_POWER, REG_BATT_SOC));
   invAcInputPower = charger.getResponseBuffer(IDX(REG_AC_INPUT_POWER, REG_BATT_SOC));
 
   modbusOkCount++;
   updateModbusErrorCode(ModbusMaster::ku8MBSuccess);
   modbusConsecutiveErrors = 0;
 
-  DEBUG_PRINTF("Inverter: Batt=%.1fV/%.1fA/%dW (%u%%) PV=%.1fV/%.1fA/%uW AC=%.1fV Load=%uW(%u%%) Temps: MPPT=%dC INV=%dC DCDC=%dC\n",
+  DEBUG_PRINTF("Inverter: Batt=%.1fV/%.1fA/%uW (%u%%) PV=%.1fV/%.1fA/%uW AC=%.1fV Load=%uW(%u%%) Temps: MPPT=%dC INV=%dC DCDC=%dC\n",
                invBattVoltage, invBattCurrent, invBattPower, invBattSoc,
                invPv1Voltage, invPv1Current, invPv1Power,
                invAcOutputVoltage,

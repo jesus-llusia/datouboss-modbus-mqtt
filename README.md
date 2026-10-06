@@ -1,6 +1,8 @@
 # solar-charger-mqtt
 
-Firmware for an ESP32-C3 that reads a **DATOUBOSS DT-1218M-A** hybrid solar inverter over its RS485 (Modbus RTU) port and publishes the data to Home Assistant over MQTT. All sensors appear in Home Assistant automatically through MQTT discovery.
+This firmware runs in an ESP32-C3 that reads a **DATOUBOSS DT-1218M-A** hybrid solar inverter over its RS485 (Modbus RTU) port and publishes the data to Home Assistant over MQTT. All sensors appear in Home Assistant automatically through MQTT discovery.
+
+![The gateway in its enclosure next to the inverter, with the inverter's data shown live on a Home Assistant dashboard](docs/images/home-assistant.jpg)
 
 DATOUBOSS does not publish the inverter's Modbus register map. The registers below were discovered by probing the inverter, and each one is marked with the confidence level recorded during that discovery. Each register is also linked to the page of the inverter's LCD that shows the same value, so you can check it yourself.
 
@@ -77,6 +79,10 @@ Both tasks are registered with the ESP32 task watchdog (30 s timeout). If either
 
 ## Hardware and wiring
 
+![Inside the enclosure: the RS485 transceiver and the ESP32-C3 SuperMini, connected to the inverter's RS485-1 port with an RJ45 cable and powered over USB-C](docs/images/installation.jpg)
+
+The ESP32-C3 and the RS485 transceiver fit in a small junction box mounted next to the inverter. A network cable runs from the inverter's RS485-1 port (on its right side) through a cable gland into the box, and a USB-C cable powers the ESP32.
+
 | Part | Notes |
 |---|---|
 | ESP32-C3 SuperMini | Built as `esp32-c3-devkitm-1` in PlatformIO. Serial output goes over the native USB port. |
@@ -133,7 +139,7 @@ All registers are holding registers, read with function code `0x03`. Addresses a
 
 **How to read the "Conversion" column:** `raw` is the 16-bit register value. For example, `raw / 10` means a raw value of `523` is 52.3. Registers marked **signed** are read as 16-bit two's complement (`int16`), so a raw value of `65 516` means −20.
 
-**Confidence** is the level recorded for each register during discovery: **Very high**, **High**, or **Not rated** (identified, but no confidence level was recorded).
+**Confidence** is the level recorded for each register during discovery: **Very high**, **High** or **Low**. Registers whose meaning has not been checked thoroughly are listed separately as **Not rated**.
 
 **LCD page** is the page of the inverter's display that shows the same value (user manual, section 4-5). Step through the pages with the UP and DOWN buttons to compare a register with the display.
 
@@ -143,8 +149,8 @@ All registers are holding registers, read with function code `0x03`. Addresses a
 |---|---|---|---|---|---|---|
 | `0x0002` | AC output voltage | raw | V | `aov` | 01 | Very high |
 | `0x0004` | DC bus voltage | raw / 10 | V | `busv` | 07 | Very high |
-| `0x0005` | AC input (grid) voltage | raw | V | `aiv` | 02 | Not rated |
-| `0x0007` | AC input (grid) current | raw / 10 | A | `aic` | 08 | Not rated |
+| `0x0005` | AC input (grid) voltage | raw | V | `aiv` | 02 | Low |
+| `0x0007` | AC input (grid) current | raw / 10 | A | `aic` | 08 | Low |
 | `0x0008` | Battery voltage | raw / 10 | V | `bv` | 03 | Very high |
 | `0x0009` | DC bus current | **signed**, raw / 100 | A | `busc` | 07 | High |
 | `0x000A` | MPPT heatsink temperature | **signed**¹, raw | °C | `mt` | 17 | Very high |
@@ -152,12 +158,9 @@ All registers are holding registers, read with function code `0x03`. Addresses a
 | `0x000C` | PV1 voltage | raw / 10 | V | `pv1v` | 14 | High |
 | `0x000F` | DC/DC heatsink temperature | **signed**¹, raw | °C | `dt` | 18 | Very high |
 | `0x0010` | Inverter heatsink temperature | **signed**¹, raw | °C | `it` | 17 | Very high |
-| `0x0011` | Battery current | **signed**, raw / 10 | A | `bc` | 03 | Very high |
-| `0x0012` | AC input (grid) frequency | raw / 10 | Hz | `aif` | 02 | Not rated |
+| `0x0011` | Battery current: positive when charging, negative when discharging | **signed**, raw / 10 | A | `bc` | 03 | Very high |
+| `0x0012` | AC input (grid) frequency | raw / 10 | Hz | `aif` | 02 | Low |
 | `0x0013` | Load, as a percentage of rated output | raw | % | `lp` | 12 | Very high |
-| `0x0015` | Inverter active flag | raw | — | *(not published)* | — | High |
-| `0x0016` | PV / MPPT active flag | raw | — | *(not published)* | — | Very high |
-| `0x0017` | Configuration bit (inverter) | raw | — | *(not published)* | — | High |
 | `0x0020` | Load power | raw | W | `lw` | 12 | Very high |
 
 ### Block 2: `0x0033–0x0042`
@@ -166,19 +169,29 @@ All registers are holding registers, read with function code `0x03`. Addresses a
 |---|---|---|---|---|---|---|
 | `0x0033` | Battery state of charge | raw | % | `soc` | 06 | Very high |
 | `0x0037` | PV1 power | raw | W | `pv1p` | 15 | High |
-| `0x0039` | PV1 generation, lifetime total | raw | kWh | `pg` | 15 | Not rated² |
-| `0x003B` | AC charging power | raw | W | `acp` | 11 | Not rated |
-| `0x003E` | Battery power | **signed**¹, raw | W | `bp` | 04 / 05³ | High |
-| `0x003F` | Battery charge energy, lifetime total | raw | kWh | `bce` | 05 | Not rated² |
-| `0x0040` | Battery discharge energy, lifetime total | raw | kWh | `dc` | 04 | Not rated² |
-| `0x0041` | Load consumption energy, lifetime total | raw | kWh | `le` | 13 | Not rated² |
-| `0x0042` | AC input (grid) power | raw | W | `aip` | 10 | Not rated |
+| `0x0039` | PV1 generation, lifetime total | raw | kWh | `pg` | 15 | Low² |
+| `0x003B` | AC charging power | raw | W | `acp` | 11 | Low |
+| `0x003E` | Battery power (always positive) | raw | W | `bp` | 04 / 05³ | High |
+| `0x003F` | Battery charge energy, lifetime total | raw | kWh | `bce` | 05 | Low² |
+| `0x0040` | Battery discharge energy, lifetime total | raw | kWh | `dc` | 04 | Low² |
+| `0x0041` | Load consumption energy, lifetime total | raw | kWh | `le` | 13 | Low² |
+| `0x0042` | AC input (grid) power | raw | W | `aip` | 10 | Low |
 
-¹ Read as signed so that negative values (temperatures below 0 °C, battery power in the opposite direction) come through correctly. For positive values the result is the same as unsigned. The sign convention has not been confirmed on the inverter. The display and the fault codes (55 inverter heatsink, 56 DC/DC heatsink, 57 MPPT heatsink) confirm there are three temperature readings. However, a [teardown of the DT-1218M](https://mysku.club/blog/diy/108781.html) (in Russian) found positions for 3 NTC sensors with only 2 fitted. In the manual's example screens the MPPT and DC/DC temperatures both read 42 °C, which suggests two of the readings may come from the same sensor.
+¹ Read as signed so that temperatures below 0 °C come through correctly. For positive values the result is the same as unsigned. The sign convention has not been confirmed on the inverter. The display and the fault codes (55 inverter heatsink, 56 DC/DC heatsink, 57 MPPT heatsink) confirm there are three temperature readings. However, a [teardown of the DT-1218M](https://mysku.club/blog/diy/108781.html) (in Russian) found positions for 3 NTC sensors with only 2 fitted. In the manual's example screens the MPPT and DC/DC temperatures both read 42 °C, which suggests two of the readings may come from the same sensor.
 
 ² Confirmed to be lifetime totals in 1 kWh steps. A 16-bit register can count up to 65 535 kWh before wrapping back to zero. The counters can be cleared from the inverter's menu with setting **A29** ("power generation reset"); see [Reliability features](#reliability-features) for how the firmware handles that.
 
-³ The display shows battery discharge power on page 04 and battery charge power on page 05, as two separate values. This register combines both as one signed value; which direction is positive has not been confirmed.
+³ The display shows battery discharge power on page 04 and battery charge power on page 05, as two separate values. This register is always positive: it gives the battery power whether the battery is charging or discharging. The direction comes from the battery current (`0x0011`): positive means charging, negative means discharging.
+
+### Registers not checked thoroughly
+
+These registers have a probable meaning, but it has not been checked thoroughly. The firmware does not use or publish them.
+
+| Register | Probable meaning | Conversion | Confidence |
+|---|---|---|---|
+| `0x0015` | Inverter active flag | raw | Not rated |
+| `0x0016` | PV / MPPT active flag | raw | Not rated |
+| `0x0017` | Configuration bit (inverter) | raw | Not rated |
 
 ### Registers read but not decoded
 
@@ -225,7 +238,7 @@ The inverter's display shows these values, so they must be stored somewhere, but
 The values below are made up, to show the format.
 
 ```json
-{"bv":52.3,"soc":85,"aov":230,"busv":380.5,"busc":1.25,"bc":-12.4,"bp":-648,
+{"bv":13.1,"soc":85,"aov":230,"busv":380.5,"busc":1.25,"bc":-12.4,"bp":162,
  "pv1v":145.2,"pv1c":6.1,"pv1p":885,"pg":1234,"lw":610,"lp":12,"mt":38,"it":41,
  "dt":36,"aiv":231,"aic":0.4,"aif":50.0,"aip":92,"acp":0,"bce":2210,"dc":1980,"le":4321}
 ```
